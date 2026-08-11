@@ -1,5 +1,6 @@
 package gaur.himanshu.gpstracker.service
 
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -16,85 +17,94 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import gaur.himanshu.gpstracker.CHANNEL_ID
 import gaur.himanshu.gpstracker.R
+import kotlinx.coroutines.flow.channelFlow
 
 class LocationService : Service() {
 
-    private val fusedLocationProviderClient: FusedLocationProviderClient by lazy {
-        LocationServices.getFusedLocationProviderClient(
-            this
-        )
+
+    private val locationRequest by lazy {
+        LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            1000).setIntervalMillis(1000).build()
     }
-    private val locationRequest: LocationRequest by lazy {
-        LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
-            .apply {
-                setIntervalMillis(10000)
-            }.build()
-    }
-    private val locationCallback: LocationCallback by lazy {
-        object : LocationCallback() {
-            override fun onLocationAvailability(p0: LocationAvailability) {
-                super.onLocationAvailability(p0)
+
+
+    private val locationCallBack by lazy {
+        object : LocationCallback(){
+            override fun onLocationResult(location: LocationResult) {
+                 val lattitute=location.lastLocation?.latitude.toString()
+                 val longitude=location.lastLocation?.longitude.toString()
+                Log.d("TAG", "onLocationResult: $lattitute, $longitude")
+                startServiceofForground(lattitute,longitude)
             }
 
-            override fun onLocationResult(locationResult: LocationResult) {
-                val location = locationResult.lastLocation!!
-                createNotification(location.latitude.toString(), location.longitude.toString())
+            override fun onLocationAvailability(location: LocationAvailability) {
             }
         }
     }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        locationUpdates()
-        return START_STICKY
-    }
-
-    private fun locationUpdates() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        android.Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    fusedLocationProviderClient.requestLocationUpdates(
-                            locationRequest,
-                            locationCallback,
-                            Looper.getMainLooper()
-                        )
-                }
-            } else {
-                fusedLocationProviderClient.requestLocationUpdates(
-                    locationRequest,
-                    locationCallback,
-                    null
-                )
-            }
-        }
-    }
-
-    @Suppress("MissingPermission")
-    fun createNotification(lat: String, lng: String) {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_background)
-            .setContentTitle("Latitude and Longitude")
-            .setContentText("$lat - $lng")
-            .build()
-        startForeground(1, notification)
-    }
-
     override fun onBind(p0: Intent?): IBinder? {
         return null
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        stopForeground(STOP_FOREGROUND_REMOVE)
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int
+    ): Int {
+        updateLocation()
+        return START_STICKY
     }
 
+    override fun onCreate() {
+        super.onCreate()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+    }
+
+    fun updateLocation(){
+        val fusedLocationClient= LocationServices.getFusedLocationProviderClient(this)
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallBack,
+            null
+        )
+    }
+
+    private fun startServiceofForground(lat:String,lng:String){
+        //Build the Notification
+        val notification= NotificationCompat.Builder(this, "channel_id")
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setContentTitle("Location Updates")
+            .setContentText("$lat, $lng")
+            .build()
+
+
+
+
+
+
+
+
+
+        if (Build.VERSION.SDK_INT>= Build.VERSION_CODES.TIRAMISU){
+
+            if (ContextCompat.checkSelfPermission(
+                this,
+                POST_NOTIFICATIONS
+            )  == PackageManager.PERMISSION_GRANTED){
+                //Then only we will showw the Notification
+                startForeground(1,notification)
+            }else{
+                startForeground(1,notification)
+            }
+
+
+
+
+
+        }
+    }
 }
