@@ -24,8 +24,10 @@ import kotlinx.coroutines.flow.channelFlow
 
 class LocationService : Service() {
 
+    private val TAG=javaClass.simpleName
 
     private val locationRequest by lazy {
+        Log.d(TAG,"LocationRequest initilzed")
         LocationRequest.Builder(
             Priority.PRIORITY_HIGH_ACCURACY,
             1000).setIntervalMillis(1000).build()
@@ -35,13 +37,14 @@ class LocationService : Service() {
     private val locationCallBack by lazy {
         object : LocationCallback(){
             override fun onLocationResult(location: LocationResult) {
-                 val lattitute=location.lastLocation?.latitude.toString()
-                 val longitude=location.lastLocation?.longitude.toString()
-                Log.d("TAG", "onLocationResult: $lattitute, $longitude")
+                val lattitute=location.lastLocation?.latitude.toString()
+                val longitude=location.lastLocation?.longitude.toString()
+                Log.d(TAG, "onLocationResult: $lattitute, $longitude")
                 startServiceofForground(lattitute,longitude)
             }
 
             override fun onLocationAvailability(location: LocationAvailability) {
+
             }
         }
     }
@@ -55,6 +58,7 @@ class LocationService : Service() {
         flags: Int,
         startId: Int
     ): Int {
+        Log.d(TAG,"Onstart Command")
         updateLocation()
         return START_STICKY
     }
@@ -69,6 +73,7 @@ class LocationService : Service() {
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun updateLocation(){
+        Log.d(TAG,"update Location Called :: updateLocation()")
         val fusedLocationClient= LocationServices.getFusedLocationProviderClient(this)
         fusedLocationClient.requestLocationUpdates(
             locationRequest,
@@ -79,6 +84,7 @@ class LocationService : Service() {
 
     private fun startServiceofForground(lat:String,lng:String){
         //Build the Notification
+        Log.d(TAG,"called startServiceofForground()")
         val notification= NotificationCompat.Builder(this, "channel_id")
             .setSmallIcon(R.drawable.ic_launcher_background)
             .setContentTitle("Location Updates")
@@ -99,9 +105,11 @@ class LocationService : Service() {
                 this,
                 POST_NOTIFICATIONS
             )  == PackageManager.PERMISSION_GRANTED){
+                Log.d(TAG,"Permission already Granted")
                 //Then only we will showw the Notification
                 startForeground(1,notification)
             }else{
+                Log.d(TAG,"Permission is Not Granted")
                 startForeground(1,notification)
             }
 
